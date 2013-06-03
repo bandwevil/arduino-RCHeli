@@ -4,19 +4,26 @@
 int main()
 {
    DDRD |= LEDOUT;
-   int i;
-
-   setControls(MAXTHROTTLE, 0, 0);
 
    //Initialize interrupt information
    transmitting = 0;
    count = 0;
+
+   setControls(0, 0, 0);
 
    currentBit = 0;
 
    initTimer2();
 
    while(1) {
+      setControls(1, MAXTRIM, DIR_C);
+      _delay_ms(500);
+      setControls(1, MAXTRIM, DIR_FL);
+      _delay_ms(500);
+      setControls(1, MAXTRIM, DIR_C);
+      _delay_ms(500);
+      setControls(1, MAXTRIM, DIR_BR);
+      _delay_ms(500);
    }
 
    return 0;
@@ -25,17 +32,75 @@ int main()
 void setControls(unsigned char throttle, unsigned char trim,
       unsigned char direction)
 {
-   unsigned char difference, checkval, i;
+   unsigned char difference, checkval, i, dirbits, lr, fb;
 
    if (throttle > MAXTHROTTLE) {
       throttle = MAXTHROTTLE;
    }
-
-   trim = MAXTRIM;
+   if (trim > MAXTRIM) {
+      trim = MAXTRIM;
+   }
 
    difference = MAXTHROTTLE - throttle;
+   difference += MAXTRIM - trim;
 
-   checkval = (0x23 - difference) % 64;
+   switch (direction) {
+      case DIR_C:
+      default:
+         dirbits = 0x00;
+         lr = 1;
+         fb = 1;
+         checkval = (CENTER_CHECK_INIT - difference) % 64;
+         break;
+      case DIR_F:
+         dirbits = 0x0F;
+         lr = 1;
+         fb = 0;
+         checkval = (FB_CHECK_INIT - difference) % 64;
+         break;
+      case DIR_B:
+         dirbits = 0x0F;
+         lr = 1;
+         fb = 1;
+         checkval = (FB_CHECK_INIT - difference) % 64;
+         break;
+      case DIR_L:
+         dirbits = 0xF0;
+         lr = 1;
+         fb = 1;
+         checkval = (LR_CHECK_INIT - difference) % 64;
+         break;
+      case DIR_R:
+         dirbits = 0xF0;
+         lr = 0;
+         fb = 1;
+         checkval = (LR_CHECK_INIT - difference) % 64;
+         break;
+      case DIR_FR:
+         dirbits = 0xFF;
+         lr = 0;
+         fb = 0;
+         checkval = (DIAG_CHECK_INIT - difference) % 64;
+         break;
+      case DIR_FL:
+         dirbits = 0xFF;
+         lr = 1;
+         fb = 0;
+         checkval = (DIAG_CHECK_INIT - difference) % 64;
+         break;
+      case DIR_BR:
+         dirbits = 0xFF;
+         lr = 1;
+         fb = 1;
+         checkval = (DIAG_CHECK_INIT - difference) % 64;
+         break;
+      case DIR_BL:
+         dirbits = 0xFF;
+         lr = 0;
+         fb = 1;
+         checkval = (DIAG_CHECK_INIT - difference) % 64;
+         break;
+   }
 
    for (i = 0; i < 34; i++) {
       if (i == 0) { //Header
@@ -46,14 +111,12 @@ void setControls(unsigned char throttle, unsigned char trim,
          transmit_temp[i] = 1;
       } else if (i >= 2 && i <= 8) { //Throttle bits
          transmit_temp[i] = checkBit(throttle, 8-i);
-      } else if (i >= 9 && i <= 12) { // Left/Right value
-         transmit_temp[i] = 0;
-      } else if (i >= 13 && i <= 16) { //Forward/Back value
-         transmit_temp[i] = 0;
+      } else if (i >= 9 && i <= 16) { // Left/Right and Forward/Back value
+         transmit_temp[i] = checkBit(dirbits, 16-i);
       } else if (i == 17) { //1 for left, 0 for right
-         transmit_temp[i] = 0;
+         transmit_temp[i] = lr;
       } else if (i == 18) { //1 for back, 0 for forward
-         transmit_temp[i] = 0;
+         transmit_temp[i] = fb;
       } else if (i >= 19 && i <= 24) { //Trim value
          transmit_temp[i] = checkBit(trim, 24-i);
       } else if (i >= 27 && i <= 32) { //CRC Value
@@ -62,6 +125,9 @@ void setControls(unsigned char throttle, unsigned char trim,
    }
 
    while(transmitting == 1) { //Wait until current transmission is finished
+   }
+   if (count > 3846-154) {
+      count = 3692; // Delay next message by up to 2 ms to avoid reading in middle
    }
 
    for (i = 0; i < 34; i++) {
