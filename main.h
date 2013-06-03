@@ -6,6 +6,7 @@
 
 //3846 * 26us = 50 ms between messages
 #define PULSES_BETWEEN_MESSAGES 3846
+#define TWO_MS_PULSES 154
 #define FULL_PULSE_HEADER 357
 #define HIGH_PULSE_HEADER 279
 #define FULL_PULSE_BIT 80
