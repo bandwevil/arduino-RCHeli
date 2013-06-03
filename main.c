@@ -126,8 +126,8 @@ void setControls(unsigned char throttle, unsigned char trim,
 
    while(transmitting == 1) { //Wait until current transmission is finished
    }
-   if (count > 3846-154) {
-      count = 3692; // Delay next message by up to 2 ms to avoid reading in middle
+   if (count > PULSES_BETWEEN_MESSAGES-TWO_MS_PULSES) {
+      count = PULSES_BETWEEN_MESSAGES-TWO_MS_PULSES; //Delay next message by up to 2 ms to avoid reading in middle
    }
 
    for (i = 0; i < 34; i++) {
@@ -140,13 +140,12 @@ void setControls(unsigned char throttle, unsigned char trim,
 ISR(TIMER2_COMPA_vect) {
    count++;
    if (transmitting == 0) { //Currently in between message transmissions
-      if (count >= 3846) {  //End of the delay, set up next message
-         //3846 * 26us = 50 ms between messages
+      if (count >= PULSES_BETWEEN_MESSAGES) {  //End of the delay, set up next message
          transmitting = 1;
          count = 0;
          currentBit = 0;
-         countTo = 357;
-         switchPoint = 279;
+         countTo = FULL_PULSE_HEADER;
+         switchPoint = HIGH_PULSE_HEADER;
       }
    } else {
       if (count <= switchPoint) { //Transmit the high part of the signal
@@ -159,14 +158,14 @@ ISR(TIMER2_COMPA_vect) {
          if (currentBit >= 34) {
             transmitting = 0;
          } else if (transmit[currentBit] == 1) {
-            countTo = 80;
-            switchPoint = 24;
+            countTo = FULL_PULSE_BIT;
+            switchPoint = HIGH_PULSE_ONE;
          } else if (transmit[currentBit] == 0) {
-            countTo = 80;
-            switchPoint = 57;
+            countTo = FULL_PULSE_BIT;
+            switchPoint = HIGH_PULSE_ZERO;
          } else {
-            countTo = 357;
-            switchPoint = 279;
+            countTo = FULL_PULSE_HEADER;
+            switchPoint = HIGH_PULSE_HEADER;
          }
       }
    }

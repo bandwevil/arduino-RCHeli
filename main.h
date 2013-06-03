@@ -4,6 +4,14 @@
 #define MAXTHROTTLE 0x77
 #define MAXTRIM 0x1D
 
+//3846 * 26us = 50 ms between messages
+#define PULSES_BETWEEN_MESSAGES 3846
+#define FULL_PULSE_HEADER 357
+#define HIGH_PULSE_HEADER 279
+#define FULL_PULSE_BIT 80
+#define HIGH_PULSE_ONE 24
+#define HIGH_PULSE_ZERO 57
+
 #define CENTER_CHECK_INIT 0x23
 #define FB_CHECK_INIT 0x32
 #define LR_CHECK_INIT 0x13
