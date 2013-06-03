@@ -7,6 +7,9 @@ Todo
 ----
 
 -Testing
+
 -Simpler manipulation of controls
+
 -Merging of motion control code as controller
+
 -other?
