@@ -1,0 +1,38 @@
+Left joystick, right joystick, trim
+
+         Full,       centered, left       h0 1110111 0000 0000 11 011101 01 100011 1
+       Middle,       centered, left       h0 1010010 0000 0000 11 011101 01 111110 1
+      Minimum,       centered, left       h0 0000000 0000 0000 11 011101 01 101100 1
+         Full,      upperleft, left       h0 1110111 1111 1111 10 011101 01 100010 1
+         Full,     upperright, left       h0 1110111 1111 1111 00 011101 01 100010 1
+         Full,      lowerleft, left       h0 1110111 1111 1111 11 011101 01 100010 1
+         Full,     lowerright, left       h0 1110111 1111 1111 01 011101 01 100010 1
+         Full,           left, left       h0 1110111 1111 0000 11 011101 01 010011 1
+         Full,          right, left       h0 1110111 1111 0000 01 011101 01 010011 1
+         Full,             up, left       h0 1110111 0000 1111 10 011101 01 110010 1
+         Full,           down, left       h0 1110111 0000 1111 11 011101 01 110010 1
+      Minimum,       centered, right      h0 0000000 0000 0000 11 111010 01 001001 1
+         Full,       centered, right      h0 1111000 0000 0000 11 111011 01 000010 1
+         Full,     upperright, right      h0 1110111 1111 1111 00 111011 01 000000 1
+         Full,      upperleft, right      h0 1111000 1111 1111 10 111011 01 000001 1
+
+h01001010000000001110011001 - 111111 - 1
+h010010100000000011100111010000001
+h01000101000000001111101001 - 001110 - 1
+
+
+Format:
+# bits => description
+
+header pulse
+1 => Always 0
+7 => throttle (from 0000000 to 1110111)
+4 => L/R value
+4 => F/B value
+1 => 1 for left, 0 for right
+1 => 1 for back, 0 for forward
+1 => trim L/R
+5 => trim value
+2 => always 01
+6 => checksum?
+1 => always 1
