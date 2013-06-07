@@ -1,36 +1,49 @@
 #include "main.h"
 
+/*
+ * Main program control and flow.
+ * initializes the required sensors, then loops based on input from button and MPU.
+ */
 int main()
 {
+   int throttle = 32; //Approximate hover @ max charge
+
    //Initialize interrupt information
    transmitting = 0;
    count = 0;
 
    state = DIR_C;
 
-   setControls(0, 0);
+   setControls(0, 0); //Disable helicopter
 
    initializeMPU();
 
    DDRD |= LEDOUT;
    DDRB |= (1<<5);
 
-   initTimer2();
+   initTimer2(); //Interrupts at 37 kHz for pulsing IR LED
 
 
    while(1) {
       setControls(0, 0);
       state = DIR_C;
 
-      while (buttonPressed(3) == 1) {
+      while (buttonPressed(3) == 1) { //Wait for button to be pressed
       }
 
-      setControls(MAXTHROTTLE, 20); //Gain a bit of altitude
+      setControls(MAXTHROTTLE, STD_TRIM); //Gain a bit of altitude
       _delay_ms(350);
 
       while (buttonPressed(3) == 0) {
-         handleInput(readGyroX(), readGyroY());
-         setControls(50, 20);
+         handleInput(readGyroX(), readGyroY()); //Read in the directional controls, modify state as necessary
+
+         if ((readAccelX() - ONE_G) < MIN_ACCEL_THRESHOLD) { //Accelerating down (minus gravity)
+            throttle--;
+         } else if ((readAccelX() - ONE_G) > MAX_ACCEL_THRESHOLD) { //Accelerating up
+            throttle++;
+         }
+
+         setControls(throttle, STD_TRIM);
       }
    }
 
@@ -72,89 +85,94 @@ int buttonPressed(int pin) {
    }
 }
 
+
+/*
+ * Handle input from the gyro sensors, switching between states as necessary.
+ * States correspond to the 8 cardinal directions, plus centered (straight hover)
+ */
 void handleInput(int gyroX, int gyroY)
 {
    switch(state) {
       case DIR_C:
-         if (gyroX > 13100 && gyroY > 13100) {
+         if (gyroX > MAX_GYRO_THRESHOLD && gyroY > MAX_GYRO_THRESHOLD) {
             state = DIR_FL;
-         } else if (gyroX > 13100 && gyroY < -13100) {
+         } else if (gyroX > MAX_GYRO_THRESHOLD && gyroY < MIN_GYRO_THRESHOLD) {
             state = DIR_BL;
-         } else if (gyroX < -13100 && gyroY > 13100) {
+         } else if (gyroX < MIN_GYRO_THRESHOLD && gyroY > MAX_GYRO_THRESHOLD) {
             state = DIR_FR;
-         } else if (gyroX < -13100 && gyroY < -13100) {
+         } else if (gyroX < MIN_GYRO_THRESHOLD && gyroY < MIN_GYRO_THRESHOLD) {
             state = DIR_BR;
-         } else if (gyroX > 13100) {
+         } else if (gyroX > MAX_GYRO_THRESHOLD) {
             state = DIR_L;
-         } else if (gyroX < -13100) {
+         } else if (gyroX < MIN_GYRO_THRESHOLD) {
             state = DIR_R;
-         } else if (gyroY > 13100) {
+         } else if (gyroY > MAX_GYRO_THRESHOLD) {
             state = DIR_F;
-         } else if (gyroY < -13100) {
+         } else if (gyroY < MIN_GYRO_THRESHOLD) {
             state = DIR_B;
          }
          break;
       case DIR_F:
-         if (gyroX > 13100) {
+         if (gyroX > MAX_GYRO_THRESHOLD) {
             state = DIR_FL;
-         } else if (gyroX < -13100) {
+         } else if (gyroX < MIN_GYRO_THRESHOLD) {
             state = DIR_FR;
-         } else if (gyroY < -13100) {
+         } else if (gyroY < MIN_GYRO_THRESHOLD) {
             state = DIR_C;
          }
          break;
       case DIR_B:
-         if (gyroX > 13100) {
+         if (gyroX > MAX_GYRO_THRESHOLD) {
             state = DIR_BL;
-         } else if (gyroX < -13100) {
+         } else if (gyroX < MIN_GYRO_THRESHOLD) {
             state = DIR_BR;
-         } else if (gyroY > 13100) {
+         } else if (gyroY > MAX_GYRO_THRESHOLD) {
             state = DIR_C;
          }
          break;
       case DIR_L:
-         if (gyroY > 13100) {
+         if (gyroY > MAX_GYRO_THRESHOLD) {
             state = DIR_FL;
-         } else if (gyroY < -13100) {
+         } else if (gyroY < MIN_GYRO_THRESHOLD) {
             state = DIR_BL;
-         } else if (gyroX < -13100) {
+         } else if (gyroX < MIN_GYRO_THRESHOLD) {
             state = DIR_C;
          }
          break;
       case DIR_R:
-         if (gyroX > 13100) {
+         if (gyroX > MAX_GYRO_THRESHOLD) {
             state = DIR_C;
-         } else if (gyroY > 13100) {
+         } else if (gyroY > MAX_GYRO_THRESHOLD) {
             state = DIR_FR;
-         } else if (gyroY < -13100) {
+         } else if (gyroY < MIN_GYRO_THRESHOLD) {
             state = DIR_BR;
          }
          break;
       case DIR_FR:
-         if (gyroX > 13100) {
+         if (gyroX > MAX_GYRO_THRESHOLD) {
             state = DIR_F;
-         } else if (gyroY < -13100) {
+         } else if (gyroY < MIN_GYRO_THRESHOLD) {
             state = DIR_R;
          }
          break;
       case DIR_FL:
-         if (gyroX < -13100) {
+         if (gyroX < MIN_GYRO_THRESHOLD) {
             state = DIR_F;
-         } else if (gyroY < -13100) {
+         } else if (gyroY < MIN_GYRO_THRESHOLD) {
             state = DIR_L;
          }
          break;
       case DIR_BR:
-         if (gyroX > 13100) {
+         if (gyroX > MAX_GYRO_THRESHOLD) {
             state = DIR_B;
-         } else if (gyroY > 13100) {
+         } else if (gyroY > MAX_GYRO_THRESHOLD) {
             state = DIR_R;
          }
          break;
       case DIR_BL:
-         if (gyroX < -13100) {
+         if (gyroX < MIN_GYRO_THRESHOLD) {
             state = DIR_B;
-         } else if (gyroY > 13100) {
+         } else if (gyroY > MAX_GYRO_THRESHOLD) {
             state = DIR_L;
          }
          break;
@@ -164,10 +182,16 @@ void handleInput(int gyroX, int gyroY)
    }
 }
 
+/*
+ * Takes in the desired controls and generates an array of bits to output on
+ * the IR LED.
+ * Maximum values for the throttle and trim are defined in the header file.
+ */
 void setControls(unsigned char throttle, unsigned char trim)
 {
    unsigned char difference, checkval, i, dirbits, lr, fb;
 
+   //Make sure maximums are not exceeded, will break message format
    if (throttle > MAXTHROTTLE) {
       throttle = MAXTHROTTLE;
    }
@@ -175,9 +199,12 @@ void setControls(unsigned char throttle, unsigned char trim)
       trim = MAXTRIM;
    }
 
+   //Calculate the distance throttle and trim are from maximum, which will be used for the CRC
    difference = MAXTHROTTLE - throttle;
    difference += MAXTRIM - trim;
 
+   //For each possible directional input, set the control bits as necessary
+   //CRC is calculated based on data measured from the controller, which gives us the CHECK_INIT values
    switch (state) {
       case DIR_C:
       default:
@@ -236,6 +263,7 @@ void setControls(unsigned char throttle, unsigned char trim)
          break;
    }
 
+   //Populate temporary array with the message's bits
    for (i = 0; i < 34; i++) {
       if (i == 0) { //Header
          transmit_temp[i] = 2;
@@ -261,6 +289,7 @@ void setControls(unsigned char throttle, unsigned char trim)
    while(transmitting != 0) { //Wait until current transmission is finished
    }
 
+   //Copy temp data into the functional array to be transmitted on the next message
    for (i = 0; i < 34; i++) {
       transmit[i] = transmit_temp[i];
    }
@@ -268,6 +297,14 @@ void setControls(unsigned char throttle, unsigned char trim)
 }
 
 
+/*
+ * Interrupt for timer 2.
+ * Handles the transmission of data out to the IR LED, which the helicopter will read from
+ * First pulses the LED for the length defined by switchPoint
+ * After it counts to switchPoint, waits for a while longer until it counts to
+ * countTo, which increments to the next bit transmission.
+ * Once it goes through all bits, goes into idle mode and waits ~50 ms to transmit the next message
+ */
 ISR(TIMER2_COMPA_vect) {
    count++;
    if (transmitting == 0) { //Currently in between message transmissions
@@ -277,7 +314,7 @@ ISR(TIMER2_COMPA_vect) {
          currentBit = 0;
          countTo = FULL_PULSE_HEADER;
          switchPoint = HIGH_PULSE_HEADER;
-         PORTB ^= (1<<5);
+         PORTB |= (1<<5); //Onboard LED on to signify data transmission
       }
    } else {
       if (count <= switchPoint) { //Transmit the high part of the signal
@@ -287,16 +324,16 @@ ISR(TIMER2_COMPA_vect) {
       } else { //Finished with current bit, go to next one
          currentBit++;
          count = 0;
-         if (currentBit >= 34) {
+         if (currentBit >= 34) { //Finished with the message
             transmitting = 0;
             PORTB &= ~(1<<5);
-         } else if (transmit[currentBit] == 1) {
+         } else if (transmit[currentBit] == 1) { //Next bit is a 1
             countTo = FULL_PULSE_BIT;
             switchPoint = HIGH_PULSE_ONE;
-         } else if (transmit[currentBit] == 0) {
+         } else if (transmit[currentBit] == 0) { //Next bit is a 0
             countTo = FULL_PULSE_BIT;
             switchPoint = HIGH_PULSE_ZERO;
-         } else {
+         } else { //Next bit is the header (shouldn't happen in normal operation)
             countTo = FULL_PULSE_HEADER;
             switchPoint = HIGH_PULSE_HEADER;
          }
