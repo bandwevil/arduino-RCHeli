@@ -1,5 +1,5 @@
 PRG            = HelicopterControl
-OBJ            = main.o interrupt.o
+OBJ            = main.o interrupt.o twi.o motion.o
 PROGRAMMER     = arduino
 PORT           = /dev/ttyACM0
 MCU_TARGET     = atmega328p

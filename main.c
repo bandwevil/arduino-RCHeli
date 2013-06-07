@@ -1,36 +1,124 @@
-
 #include "main.h"
+
+void handleInput(int gyroX, int gyroY);
 
 int main()
 {
-   DDRD |= LEDOUT;
-
    //Initialize interrupt information
    transmitting = 0;
    count = 0;
 
-   setControls(0, 0, 0);
+   state = DIR_C;
 
-   currentBit = 0;
+   setControls(1, 0);
+
+   //initializeMPU();
+
+   DDRB |= LEDOUT;
 
    initTimer2();
 
    while(1) {
-      setControls(1, MAXTRIM, DIR_C);
-      _delay_ms(500);
-      setControls(1, MAXTRIM, DIR_FL);
-      _delay_ms(500);
-      setControls(1, MAXTRIM, DIR_C);
-      _delay_ms(500);
-      setControls(1, MAXTRIM, DIR_BR);
-      _delay_ms(500);
+      //handleInput(readGyroX(), readGyroY());
+      setControls(1, MAXTRIM);
    }
 
    return 0;
 }
 
-void setControls(unsigned char throttle, unsigned char trim,
-      unsigned char direction)
+void handleInput(int gyroX, int gyroY)
+{
+   switch(state) {
+      case DIR_C:
+         if (gyroX > 13100 && gyroY > 13100) {
+            state = DIR_FL;
+         } else if (gyroX > 13100 && gyroY < 13100) {
+            state = DIR_BL;
+         } else if (gyroX < 13100 && gyroY > 13100) {
+            state = DIR_FR;
+         } else if (gyroX < 13100 && gyroY < 13100) {
+            state = DIR_BR;
+         } else if (gyroX > 13100) {
+            state = DIR_L;
+         } else if (gyroX < 13100) {
+            state = DIR_R;
+         } else if (gyroY > 13100) {
+            state = DIR_F;
+         } else if (gyroY < 13100) {
+            state = DIR_B;
+         }
+         break;
+      case DIR_F:
+         if (gyroX > 13100) {
+            state = DIR_FL;
+         } else if (gyroX < 13100) {
+            state = DIR_FR;
+         } else if (gyroY < 13100) {
+            state = DIR_C;
+         }
+         break;
+      case DIR_B:
+         if (gyroX > 13100) {
+            state = DIR_BL;
+         } else if (gyroX < 13100) {
+            state = DIR_BR;
+         } else if (gyroY > 13100) {
+            state = DIR_C;
+         }
+         break;
+      case DIR_L:
+         if (gyroY > 13100) {
+            state = DIR_FL;
+         } else if (gyroY < 13100) {
+            state = DIR_BL;
+         } else if (gyroX < 13100) {
+            state = DIR_C;
+         }
+         break;
+      case DIR_R:
+         if (gyroX > 13100) {
+            state = DIR_C;
+         } else if (gyroY > 13100) {
+            state = DIR_FR;
+         } else if (gyroY < 13100) {
+            state = DIR_BR;
+         }
+         break;
+      case DIR_FR:
+         if (gyroX > 13100) {
+            state = DIR_F;
+         } else if (gyroY < 13100) {
+            state = DIR_R;
+         }
+         break;
+      case DIR_FL:
+         if (gyroX < 13100) {
+            state = DIR_F;
+         } else if (gyroY < 13100) {
+            state = DIR_L;
+         }
+         break;
+      case DIR_BR:
+         if (gyroX > 13100) {
+            state = DIR_B;
+         } else if (gyroY > 13100) {
+            state = DIR_R;
+         }
+         break;
+      case DIR_BL:
+         if (gyroX < 13100) {
+            state = DIR_B;
+         } else if (gyroY > 13100) {
+            state = DIR_L;
+         }
+         break;
+      default:
+         state = DIR_C;
+         break;
+   }
+}
+
+void setControls(unsigned char throttle, unsigned char trim)
 {
    unsigned char difference, checkval, i, dirbits, lr, fb;
 
@@ -44,7 +132,7 @@ void setControls(unsigned char throttle, unsigned char trim,
    difference = MAXTHROTTLE - throttle;
    difference += MAXTRIM - trim;
 
-   switch (direction) {
+   switch (state) {
       case DIR_C:
       default:
          dirbits = 0x00;
@@ -124,7 +212,7 @@ void setControls(unsigned char throttle, unsigned char trim,
       }
    }
 
-   while(transmitting == 1) { //Wait until current transmission is finished
+   while(transmitting != 0) { //Wait until current transmission is finished
    }
    if (count > PULSES_BETWEEN_MESSAGES-TWO_MS_PULSES) {
       count = PULSES_BETWEEN_MESSAGES-TWO_MS_PULSES; //Delay next message by up to 2 ms to avoid reading in middle
@@ -149,9 +237,9 @@ ISR(TIMER2_COMPA_vect) {
       }
    } else {
       if (count <= switchPoint) { //Transmit the high part of the signal
-         PORTD ^= LEDOUT;
+         PORTB ^= LEDOUT;
       } else if (count <= countTo) { //Finished with high transmit, go low
-         PORTD &= ~LEDOUT;
+         PORTB &= ~LEDOUT;
       } else { //Finished with current bit, go to next one
          currentBit++;
          count = 0;
