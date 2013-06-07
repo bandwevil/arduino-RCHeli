@@ -25,14 +25,13 @@ int main()
       while (buttonPressed(3) == 1) {
       }
 
-      setControls(MAXTHROTTLE, 0);
-      _delay_ms(200);
+      setControls(MAXTHROTTLE, 20); //Gain a bit of altitude
+      _delay_ms(350);
 
       while (buttonPressed(3) == 0) {
          handleInput(readGyroX(), readGyroY());
-         setControls(30, 0);
+         setControls(50, 20);
       }
-
    }
 
    return 0;
