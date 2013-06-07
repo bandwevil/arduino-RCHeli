@@ -1,7 +1,7 @@
 #include "interrupt.h"
-//#include "motion.h"
+#include "motion.h"
 
-#define LEDOUT (1<<5)
+#define LEDOUT (1<<2)
 #define MAXTHROTTLE 0x77
 #define MAXTRIM 0x1D
 
@@ -32,6 +32,8 @@
 #define checkBit(x, a) ((((x)&(1<<(a))) != 0)?1:0)
 
 void setControls(unsigned char throttle, unsigned char trim);
+int buttonPressed(int pin);
+void handleInput(int gyroX, int gyroY);
 
 char transmit[34];
 char transmit_temp[34];

@@ -1,7 +1,5 @@
 #include "main.h"
 
-void handleInput(int gyroX, int gyroY);
-
 int main()
 {
    //Initialize interrupt information
@@ -10,20 +8,69 @@ int main()
 
    state = DIR_C;
 
-   setControls(1, 0);
+   setControls(0, 0);
 
-   //initializeMPU();
+   initializeMPU();
 
-   DDRB |= LEDOUT;
+   DDRD |= LEDOUT;
+   DDRB |= (1<<5);
 
    initTimer2();
 
+
    while(1) {
-      //handleInput(readGyroX(), readGyroY());
-      setControls(1, MAXTRIM);
+      setControls(0, 0);
+      state = DIR_C;
+
+      while (buttonPressed(3) == 1) {
+      }
+
+      setControls(MAXTHROTTLE, 0);
+      _delay_ms(200);
+
+      while (buttonPressed(3) == 0) {
+         handleInput(readGyroX(), readGyroY());
+         setControls(30, 0);
+      }
+
    }
 
    return 0;
+}
+
+/*
+ * Checks if the button input on Pin B3 is pressed or not.
+ * args:
+ * pin - Which pin on Port D should be checked
+ * returns:
+ * 0 if the button is pressed, 1 if the button is up
+ */
+int buttonPressed(int pin) {
+   int previous, next, i = 0;
+
+   DDRD &= ~(1<<pin);
+   PORTD |= (1<<pin);
+
+   previous = PIND & (1<<pin);
+
+   //We read the input every 1ms, waiting until we read the same value
+   //4 times in a row, which means it's stable.
+   while (i < 4) {
+      _delay_ms(1);
+      next = PIND & (1<<pin);
+      if (previous == next) {
+         i++;
+      } else {
+         i = 0;
+      }
+      previous = next;
+   }
+
+   if (next >= 1) {
+      return 1;
+   } else {
+      return 0;
+   }
 }
 
 void handleInput(int gyroX, int gyroY)
@@ -32,35 +79,35 @@ void handleInput(int gyroX, int gyroY)
       case DIR_C:
          if (gyroX > 13100 && gyroY > 13100) {
             state = DIR_FL;
-         } else if (gyroX > 13100 && gyroY < 13100) {
+         } else if (gyroX > 13100 && gyroY < -13100) {
             state = DIR_BL;
-         } else if (gyroX < 13100 && gyroY > 13100) {
+         } else if (gyroX < -13100 && gyroY > 13100) {
             state = DIR_FR;
-         } else if (gyroX < 13100 && gyroY < 13100) {
+         } else if (gyroX < -13100 && gyroY < -13100) {
             state = DIR_BR;
          } else if (gyroX > 13100) {
             state = DIR_L;
-         } else if (gyroX < 13100) {
+         } else if (gyroX < -13100) {
             state = DIR_R;
          } else if (gyroY > 13100) {
             state = DIR_F;
-         } else if (gyroY < 13100) {
+         } else if (gyroY < -13100) {
             state = DIR_B;
          }
          break;
       case DIR_F:
          if (gyroX > 13100) {
             state = DIR_FL;
-         } else if (gyroX < 13100) {
+         } else if (gyroX < -13100) {
             state = DIR_FR;
-         } else if (gyroY < 13100) {
+         } else if (gyroY < -13100) {
             state = DIR_C;
          }
          break;
       case DIR_B:
          if (gyroX > 13100) {
             state = DIR_BL;
-         } else if (gyroX < 13100) {
+         } else if (gyroX < -13100) {
             state = DIR_BR;
          } else if (gyroY > 13100) {
             state = DIR_C;
@@ -69,9 +116,9 @@ void handleInput(int gyroX, int gyroY)
       case DIR_L:
          if (gyroY > 13100) {
             state = DIR_FL;
-         } else if (gyroY < 13100) {
+         } else if (gyroY < -13100) {
             state = DIR_BL;
-         } else if (gyroX < 13100) {
+         } else if (gyroX < -13100) {
             state = DIR_C;
          }
          break;
@@ -80,21 +127,21 @@ void handleInput(int gyroX, int gyroY)
             state = DIR_C;
          } else if (gyroY > 13100) {
             state = DIR_FR;
-         } else if (gyroY < 13100) {
+         } else if (gyroY < -13100) {
             state = DIR_BR;
          }
          break;
       case DIR_FR:
          if (gyroX > 13100) {
             state = DIR_F;
-         } else if (gyroY < 13100) {
+         } else if (gyroY < -13100) {
             state = DIR_R;
          }
          break;
       case DIR_FL:
-         if (gyroX < 13100) {
+         if (gyroX < -13100) {
             state = DIR_F;
-         } else if (gyroY < 13100) {
+         } else if (gyroY < -13100) {
             state = DIR_L;
          }
          break;
@@ -106,7 +153,7 @@ void handleInput(int gyroX, int gyroY)
          }
          break;
       case DIR_BL:
-         if (gyroX < 13100) {
+         if (gyroX < -13100) {
             state = DIR_B;
          } else if (gyroY > 13100) {
             state = DIR_L;
@@ -214,9 +261,6 @@ void setControls(unsigned char throttle, unsigned char trim)
 
    while(transmitting != 0) { //Wait until current transmission is finished
    }
-   if (count > PULSES_BETWEEN_MESSAGES-TWO_MS_PULSES) {
-      count = PULSES_BETWEEN_MESSAGES-TWO_MS_PULSES; //Delay next message by up to 2 ms to avoid reading in middle
-   }
 
    for (i = 0; i < 34; i++) {
       transmit[i] = transmit_temp[i];
@@ -234,17 +278,19 @@ ISR(TIMER2_COMPA_vect) {
          currentBit = 0;
          countTo = FULL_PULSE_HEADER;
          switchPoint = HIGH_PULSE_HEADER;
+         PORTB ^= (1<<5);
       }
    } else {
       if (count <= switchPoint) { //Transmit the high part of the signal
-         PORTB ^= LEDOUT;
+         PORTD ^= LEDOUT;
       } else if (count <= countTo) { //Finished with high transmit, go low
-         PORTB &= ~LEDOUT;
+         PORTD &= ~LEDOUT;
       } else { //Finished with current bit, go to next one
          currentBit++;
          count = 0;
          if (currentBit >= 34) {
             transmitting = 0;
+            PORTB &= ~(1<<5);
          } else if (transmit[currentBit] == 1) {
             countTo = FULL_PULSE_BIT;
             switchPoint = HIGH_PULSE_ONE;
